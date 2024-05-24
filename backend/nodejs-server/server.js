@@ -4,6 +4,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+require('dotenv').config();
 
 const app = express();
 
@@ -18,18 +19,19 @@ app.use(bodyParser.json());
 // Enable CORS for all routes
 app.use(cors());
 
-// MongoDB configuration
-const mongoURI = "mongodb://127.0.0.1:27017/feedforward";
-mongoose
-  .connect(mongoURI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("FeedForward Account DB connected"))
+// MongoDB Atlas connection string from environment variables
+const mongoURI = process.env.MONGO_URI;
+
+// Connect to MongoDB Atlas
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,  // These options are deprecated and should be removed
+  useUnifiedTopology: true,  // These options are deprecated and should be removed
+})
+.then(() => console.log("FeedForward Account DB connected"))
   .catch((err) => {
     console.error("FeedForward Account DB connection error:", err);
     process.exit(1); // Terminate the server on connection error
-  });
+});
 
 // Define a middleware function to verify the token
 const verifyToken = (req, res, next) => {
@@ -41,7 +43,7 @@ const verifyToken = (req, res, next) => {
 
   jwt.verify(
     token,
-    "78f15b5705f3cd8d8c39ec495b9ac2f6637bf215eaf3dbf02e9f7549320a483b",
+    process.env.JWT_SECRET,
     (err, decodedToken) => {
       if (err) {
         return res.status(401).json({ error: "Invalid token" });
@@ -52,8 +54,6 @@ const verifyToken = (req, res, next) => {
     }
   );
 };
-
-
 
 // Create a schema and model for the user
 const userSchema = new mongoose.Schema({
@@ -131,7 +131,7 @@ app.post("/login", (req, res) => {
         // Create and sign a JWT token
         const token = jwt.sign(
           { userId: user._id },
-          "78f15b5705f3cd8d8c39ec495b9ac2f6637bf215eaf3dbf02e9f7549320a483b"
+          process.env.JWT_SECRET
         );
 
         // Return the token in the response
@@ -318,7 +318,7 @@ const WasteData = mongoose.model("WasteData", wasteSchema);
 app.post("/waste", verifyToken, (req, res) => {
   const { foodItem, foodQuantity, foodReason, foodWasteDate, foodAddTxt } =
     req.body;
-    const userId = req.userId;
+  const userId = req.userId;
   if (
     !foodItem ||
     !foodQuantity ||
@@ -348,6 +348,7 @@ app.post("/waste", verifyToken, (req, res) => {
       res.status(500).json({ error: "Failed to Save Waste Data" });
     });
 });
+
 // Define a route to fetch waste quantity for a specific user
 app.get("/waste", verifyToken, (req, res) => {
   const userId = req.userId;
